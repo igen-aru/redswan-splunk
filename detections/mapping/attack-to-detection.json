@@ -1,0 +1,74 @@
+{
+  "project": "splunk-detection-lab",
+  "version": "1.0.0",
+  "mappings": [
+    {
+      "detection_name": "suspicious-powershell.spl",
+      "title": "Suspicious PowerShell Execution",
+      "splunk_index": "windows",
+      "data_sources": [
+        "Windows Security Event Logs",
+        "PowerShell Operational Logs"
+      ],
+      "event_codes": [
+        "4104",
+        "4688"
+      ],
+      "mitre_attack": [
+        {
+          "technique_id": "T1059.001",
+          "technique_name": "PowerShell",
+          "tactic": "Execution"
+        },
+        {
+          "technique_id": "T1027",
+          "technique_name": "Obfuscated/Compressed Files and Information",
+          "tactic": "Defense Evasion"
+        }
+      ]
+    },
+    {
+      "detection_name": "brute-force-ssh.spl",
+      "title": "SSH Brute Force",
+      "splunk_index": "linux",
+      "data_sources": [
+        "Linux Authentication Logs"
+      ],
+      "event_examples": [
+        "Failed password"
+      ],
+      "mitre_attack": [
+        {
+          "technique_id": "T1110",
+          "technique_name": "Brute Force",
+          "tactic": "Credential Access"
+        }
+      ]
+    },
+    {
+      "detection_name": "lateral-movement.spl",
+      "title": "Credential-Based Lateral Movement",
+      "splunk_index": "windows",
+      "data_sources": [
+        "Windows Security Event Logs"
+      ],
+      "event_codes": [
+        "4624",
+        "4648",
+        "4688"
+      ],
+      "mitre_attack": [
+        {
+          "technique_id": "T1021",
+          "technique_name": "Remote Services",
+          "tactic": "Lateral Movement"
+        },
+        {
+          "technique_id": "T1078",
+          "technique_name": "Valid Accounts",
+          "tactic": "Defense Evasion"
+        }
+      ]
+    }
+  ]
+}
