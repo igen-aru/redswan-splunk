@@ -23,7 +23,7 @@ jobs:
         with:
           globs: |
             **/*.md
-
+          config: .markdownlint-cli2.jsonc
       - name: Validate JSON mapping
         run: |
           python -m json.tool detections/mapping/attack-to-detection.json > /dev/null
