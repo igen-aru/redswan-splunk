@@ -1,0 +1,43 @@
+name: Validate Detections
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run markdown lint
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+
+      - name: Validate JSON mapping
+        run: |
+          python -m json.tool detections/mapping/attack-to-detection.json > /dev/null
+
+      - name: Check required SPL files exist
+        run: |
+          test -f detections/splunk-spl/suspicious-powershell.spl
+          test -f detections/splunk-spl/brute-force-ssh.spl
+          test -f detections/splunk-spl/lateral-movement.spl
+
+      - name: Basic SPL content validation
+        run: |
+          grep -q "index=" detections/splunk-spl/suspicious-powershell.spl
+          grep -q "index=" detections/splunk-spl/brute-force-ssh.spl
+          grep -q "index=" detections/splunk-spl/lateral-movement.spl
+
+      - name: Validate dashboard XML presence
+        run: |
+          test -f dashboards/soc-monitoring-dashboard.xml
+          grep -q "<dashboard" dashboards/soc-monitoring-dashboard.xml
