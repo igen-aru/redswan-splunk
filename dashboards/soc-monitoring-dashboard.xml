@@ -1,0 +1,94 @@
+<dashboard version="1.1">
+  <label>SOC Monitoring Dashboard</label>
+  <description>Portfolio dashboard for monitoring detections in the Splunk Detection Lab.</description>
+
+  <row>
+    <panel>
+      <title>PowerShell Detections</title>
+      <table>
+        <search>
+          <query>
+index=windows (sourcetype="WinEventLog:Microsoft-Windows-PowerShell/Operational" OR sourcetype="XmlWinEventLog:Microsoft-Windows-PowerShell/Operational" OR sourcetype="WinEventLog:Security")
+(EventCode=4104 OR EventCode=4688)
+| eval raw_cmd=coalesce(CommandLine, Process_Command_Line, ScriptBlockText, Message)
+| eval process_name=coalesce(New_Process_Name, ProcessName, Image, process_name)
+| search raw_cmd=*
+| eval encoded_flag=if(match(lower(raw_cmd), "(^|\\s)-e(nc|ncodedcommand)?(\\s|$)"), 1, 0)
+| eval hidden_flag=if(match(lower(raw_cmd), "(^|\\s)-w(indowstyle)?\\s+hidden"), 1, 0)
+| eval bypass_flag=if(match(lower(raw_cmd), "executionpolicy\\s+bypass"), 1, 0)
+| eval download_flag=if(match(lower(raw_cmd), "downloadstring|invoke-webrequest|iwr\\s|wget\\s|curl\\s"), 1, 0)
+| eval suspicious_score=encoded_flag + hidden_flag + bypass_flag + download_flag
+| where suspicious_score >= 2 OR (match(lower(process_name), "powershell(.exe)?|pwsh(.exe)?") AND suspicious_score >= 1)
+| eval severity=case(suspicious_score>=3,"critical", suspicious_score=2,"high", suspicious_score=1,"medium", true(),"low")
+| table _time host user process_name suspicious_score severity
+| sort - _time
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">10</option>
+      </table>
+    </panel>
+
+    <panel>
+      <title>SSH Brute Force Sources</title>
+      <chart>
+        <search>
+          <query>
+index=linux ("Failed password" AND "sshd")
+| rex field=_raw "Failed password for (invalid user )?(?<user>[^\s]+) from (?<src_ip>\d{1,3}(?:\.\d{1,3}){3})"
+| stats count by src_ip
+| sort - count
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Lateral Movement Candidates</title>
+      <table>
+        <search>
+          <query>
+index=windows sourcetype="WinEventLog:Security" (EventCode=4648 OR EventCode=4624 OR EventCode=4688)
+| eval account=coalesce(Account_Name, TargetUserName, user)
+| eval src_ip=coalesce(Source_Network_Address, IpAddress, WorkstationName)
+| eval process_name=coalesce(Process_Name, New_Process_Name, process_name)
+| eval command_line=coalesce(CommandLine, Process_Command_Line, Message)
+| eval explicit_creds=if(EventCode=4648,1,0)
+| eval remote_logon=if(EventCode=4624 AND (LogonType=3 OR LogonType=9 OR LogonType=10),1,0)
+| eval admin_tool=if(match(lower(command_line), "psexec|wmic|winrs|mstsc|powershell"),1,0)
+| stats sum(explicit_creds) as explicit_creds sum(remote_logon) as remote_logons values(process_name) as processes by src_ip account
+| eval suspicious_score=explicit_creds + remote_logons + admin_tool
+| where suspicious_score >= 2
+| eval severity=case(suspicious_score>=4,"critical", suspicious_score=3,"high", suspicious_score=2,"medium", true(),"low")
+| table src_ip account explicit_creds remote_logons processes suspicious_score severity
+| sort - suspicious_score
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">10</option>
+      </table>
+    </panel>
+
+    <panel>
+      <title>Windows Security Event Volume</title>
+      <chart>
+        <search>
+          <query>
+index=windows sourcetype="WinEventLog:Security" (EventCode=4624 OR EventCode=4625 OR EventCode=4648 OR EventCode=4688)
+| timechart span=1h count by EventCode
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+      </chart>
+    </panel>
+  </row>
+</dashboard>
