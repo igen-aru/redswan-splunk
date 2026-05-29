@@ -1,0 +1,14 @@
+index=windows (sourcetype="WinEventLog:Microsoft-Windows-PowerShell/Operational" OR sourcetype="XmlWinEventLog:Microsoft-Windows-PowerShell/Operational" OR sourcetype="WinEventLog:Security")
+(EventCode=4104 OR EventCode=4688)
+| eval raw_cmd=coalesce(CommandLine, Process_Command_Line, ScriptBlockText, Message)
+| eval process_name=coalesce(New_Process_Name, ProcessName, Image, process_name)
+| search raw_cmd=*
+| eval encoded_flag=if(match(lower(raw_cmd), "(^|\\s)-e(nc|ncodedcommand)?(\\s|$)"), 1, 0)
+| eval hidden_flag=if(match(lower(raw_cmd), "(^|\\s)-w(indowstyle)?\\s+hidden"), 1, 0)
+| eval bypass_flag=if(match(lower(raw_cmd), "executionpolicy\\s+bypass"), 1, 0)
+| eval download_flag=if(match(lower(raw_cmd), "downloadstring|invoke-webrequest|iwr\\s|wget\\s|curl\\s"), 1, 0)
+| eval suspicious_score=encoded_flag + hidden_flag + bypass_flag + download_flag
+| where suspicious_score >= 2 OR (match(lower(process_name), "powershell(.exe)?|pwsh(.exe)?") AND suspicious_score >= 1)
+| eval severity=case(suspicious_score>=3,"critical", suspicious_score=2,"high", suspicious_score=1,"medium", true(),"low")
+| table _time host user EventCode process_name raw_cmd suspicious_score severity
+| sort - _time
