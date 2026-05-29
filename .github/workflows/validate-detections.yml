@@ -6,6 +6,9 @@ on:
       - main
       - master
   pull_request:
+    branches:
+      - main
+      - master
 
 jobs:
   validate:
@@ -16,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run markdown lint
-        uses: DavidAnson/markdownlint-cli2-action@v16
+        uses: DavidAnson/markdownlint-cli2-action@v19
         with:
           globs: |
             **/*.md
@@ -39,5 +42,5 @@ jobs:
 
       - name: Validate dashboard XML presence
         run: |
-          test -f dashboards/soc-monitoring-dashboard.xml
-          grep -q "<dashboard" dashboards/soc-monitoring-dashboard.xml
+          test -f default/data/ui/views/soc-monitoring-dashboard.xml
+          grep -q "<dashboard" default/data/ui/views/soc-monitoring-dashboard.xml
