@@ -1,0 +1,23 @@
+title: Suspicious PowerShell Encoded or Hidden Execution
+id: 2f45c9a8-a786-4d6b-8c48-0b80f31f9c11
+status: experimental
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection_img:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+  selection_cmd:
+    CommandLine|contains:
+      - ' -enc '
+      - ' -encodedcommand '
+      - ' -w hidden'
+      - 'ExecutionPolicy Bypass'
+  condition: selection_img and selection_cmd
+level: high
+tags:
+  - attack.execution
+  - attack.t1059.001
+  - attack.defense-evasion
