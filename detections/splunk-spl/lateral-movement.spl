@@ -1,0 +1,15 @@
+index=windows sourcetype="WinEventLog:Security" (EventCode=4648 OR EventCode=4624 OR EventCode=4688)
+| eval account=coalesce(Account_Name, TargetUserName, user)
+| eval src_ip=coalesce(Source_Network_Address, IpAddress, WorkstationName)
+| eval process_name=coalesce(Process_Name, New_Process_Name, process_name)
+| eval command_line=coalesce(CommandLine, Process_Command_Line, Message)
+| eval explicit_creds=if(EventCode=4648,1,0)
+| eval remote_logon=if(EventCode=4624 AND (LogonType=3 OR LogonType=9 OR LogonType=10),1,0)
+| eval admin_tool=if(match(lower(command_line), "psexec|wmic|winrs|mstsc|powershell"),1,0)
+| stats sum(explicit_creds) as explicit_creds sum(remote_logon) as remote_logons values(process_name) as processes values(command_line) as commands values(host) as dest_hosts by src_ip account
+| eval suspicious_score=explicit_creds + remote_logons + admin_tool
+| where suspicious_score >= 2
+| eval severity=case(suspicious_score>=4,"critical", suspicious_score=3,"high", suspicious_score=2,"medium", true(),"low")
+| eval analytic="Possible credential-based lateral movement"
+| table src_ip account dest_hosts explicit_creds remote_logons processes commands suspicious_score severity analytic
+| sort - suspicious_score
